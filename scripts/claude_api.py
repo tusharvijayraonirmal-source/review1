@@ -1,13 +1,18 @@
 import os
 import json
+import os
+import json
 import logging
-from typing import Any
+from pathlib import Path
 
 import anthropic
 
-from pathlib import Path
-
 logger = logging.getLogger(__name__)
+
+
+# ============================================================
+# Claude configuration
+# ============================================================
 
 MODEL = (
     os.getenv("ANTHROPIC_MODEL", "").strip()
@@ -16,14 +21,20 @@ MODEL = (
 )
 
 api_key = (
-    os.getenv("ANTHROPIC_AUTH_TOKEN", "")
-    or os.getenv("ANTHROPIC_API_KEY", "")
-    or os.getenv("ANTHROPIC_TOKEN", "")
+    os.getenv("ANTHROPIC_AUTH_TOKEN", "").strip()
+    or os.getenv("ANTHROPIC_API_KEY", "").strip()
+    or os.getenv("ANTHROPIC_TOKEN", "").strip()
 )
+
 base_url = (
     os.getenv("ANTHROPIC_BASE_URL", "").strip()
     or "https://api.anthropic.com"
 )
+
+
+# ============================================================
+# Validate configuration
+# ============================================================
 
 if not api_key:
     raise RuntimeError(
@@ -31,17 +42,44 @@ if not api_key:
         "Configure it in GitHub Actions secrets."
     )
 
-# Build client kwargs conditionally to avoid
-# passing empty values to newer SDK versions.
-client_kwargs: dict[str, Any] = {}
+if not base_url.startswith(("http://", "https://")):
+    raise RuntimeError(
+        f"Invalid ANTHROPIC_BASE_URL: {base_url!r}"
+    )
 
-if api_key:
-    client_kwargs["api_key"] = api_key
+if not MODEL:
+    raise RuntimeError(
+        "Claude model is not configured."
+    )
 
-if base_url:
-    client_kwargs["base_url"] = base_url.rstrip("/")
 
-client = anthropic.Anthropic(**client_kwargs)
+logger.info(
+    "Claude configuration: model=%s base_url=%s",
+    MODEL,
+    base_url,
+)
+
+
+# ============================================================
+# Claude client
+# ============================================================
+
+client = anthropic.Anthropic(
+    api_key=api_key,
+    base_url=base_url.rstrip("/"),
+)
+
+# # Build client kwargs conditionally to avoid
+# # passing empty values to newer SDK versions.
+# client_kwargs: dict[str, Any] = {}
+
+# if api_key:
+#     client_kwargs["api_key"] = api_key
+
+# if base_url:
+#     client_kwargs["base_url"] = base_url.rstrip("/")
+
+# client = anthropic.Anthropic(**client_kwargs)
 
 
 def load_skill(skill_name: str) -> str:

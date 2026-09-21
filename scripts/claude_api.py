@@ -1,4 +1,25 @@
+import os
+import json
+import logging
+
+import anthropic
+
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+MODEL = os.getenv(
+    "ANTHROPIC_MODEL",
+    "claude-sonnet-4-20250514",
+)
+
+client = anthropic.Anthropic(
+    api_key=os.getenv("ANTHROPIC_AUTH_TOKEN", ""),
+    base_url=os.getenv(
+        "ANTHROPIC_BASE_URL",
+        "https://api.anthropic.com",
+    ).rstrip("/"),
+)
 
 
 def load_skill(skill_name: str) -> str:
@@ -21,47 +42,110 @@ def load_skill(skill_name: str) -> str:
     )
 
 
-CODE_REVIEW_SKILL = load_skill("code-review")
-
-
 def review_code(
     diff: str,
     repository: str,
     pr_number: int,
+    selected_skills: list[str],
+    review_mode: str = "PR",
+    repository_context: str = "",
 ):
-    skill = load_skill("code-review")
+    # Load ONLY the skills selected by the user
+    skills_content = []
+
+    for skill_name in selected_skills:
+        skill_name = skill_name.strip()
+
+        if not skill_name:
+            continue
+
+        skill = load_skill(skill_name)
+
+        skills_content.append(
+            f"""
+==============================
+SKILL: {skill_name}
+==============================
+{skill}
+"""
+        )
+
+    # If no skill was selected, use code-review as default
+    if not skills_content:
+        skills_content.append(
+            f"""
+==============================
+SKILL: code-review
+==============================
+{load_skill("code-review")}
+"""
+        )
+
+    combined_skills = "\n".join(skills_content)
 
     prompt = f"""
-You must perform this task using the following skill.
+You must perform this task using the following selected skills.
+
+{combined_skills}
 
 ==============================
-SKILL
+REVIEW CONTEXT
 ==============================
-
-{skill}
-
-==============================
-PULL REQUEST CONTEXT
-==============================
-
 Repository:
 {repository}
+
+Review Mode:
+{review_mode}
 
 Pull Request:
 #{pr_number}
 
-==============================
-GIT DIFF
-==============================
+Repository Context:
+{repository_context}
 
+==============================
+CODE / DIFF
+==============================
 {diff}
 
 ==============================
-
-Follow the skill instructions exactly.
+INSTRUCTIONS
+==============================
+Follow all selected skill instructions exactly.
 
 Return ONLY the JSON format specified
-by the skill.
+by the applicable skill instructions.
 """
 
-    return prompt
+    print(f"Calling Claude model: {MODEL}")
+
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=4096,
+        messages=[
+            {
+                "role": "user",
+                "content": prompt,
+            }
+        ],
+    )
+
+    text = response.content[0].text.strip()
+
+    if text.startswith("```"):
+        text = text.replace("```json", "")
+        text = text.replace("```", "")
+        text = text.strip()
+
+    try:
+        review = json.loads(text)
+
+    except json.JSONDecodeError as exc:
+        print("Claude returned invalid JSON:")
+        print(text)
+
+        raise RuntimeError(
+            "Claude response was not valid JSON."
+        ) from exc
+
+    return review

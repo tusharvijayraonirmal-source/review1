@@ -29,7 +29,7 @@ def load_skill(skill_name: str) -> str:
         project_root
         / "skills"
         / skill_name
-        / "SKILL.md"
+        / "skills.md"
     )
 
     if not skill_file.exists():

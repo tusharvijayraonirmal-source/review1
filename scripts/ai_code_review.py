@@ -741,12 +741,14 @@ def main() -> int:
         #     api_url=args.api_url,
         #     payload=payload,
         # )
+        selected_skills = parse_skills(args.skills)
+
         review = review_code(
             diff=diff,
             repository=args.repository,
             pr_number=int(args.pr_number),
             review_mode=args.review_mode,
-            skills=parse_skills(args.skills),
+            skills=selected_skills,
             repository_context=args.repository_context or "",
         )
         validate_review_result(review)

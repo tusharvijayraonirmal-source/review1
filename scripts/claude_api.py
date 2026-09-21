@@ -9,9 +9,10 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-MODEL = os.getenv(
-    "ANTHROPIC_MODEL",
-    "claude-sonnet-4-20250514",
+MODEL = (
+    os.getenv("ANTHROPIC_MODEL", "").strip()
+    or os.getenv("CLAUDE_MODEL", "").strip()
+    or "claude-sonnet-4-20250514"
 )
 
 api_key = (
@@ -19,9 +20,9 @@ api_key = (
     or os.getenv("ANTHROPIC_API_KEY", "")
     or os.getenv("ANTHROPIC_TOKEN", "")
 )
-base_url = os.getenv(
-    "ANTHROPIC_BASE_URL",
-    "https://api.anthropic.com",
+base_url = (
+    os.getenv("ANTHROPIC_BASE_URL", "").strip()
+    or "https://api.anthropic.com"
 )
 
 if not api_key:

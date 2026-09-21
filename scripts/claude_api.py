@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+from typing import Any
 
 import anthropic
 
@@ -13,13 +14,33 @@ MODEL = os.getenv(
     "claude-sonnet-4-20250514",
 )
 
-client = anthropic.Anthropic(
-    api_key=os.getenv("ANTHROPIC_AUTH_TOKEN", ""),
-    base_url=os.getenv(
-        "ANTHROPIC_BASE_URL",
-        "https://api.anthropic.com",
-    ).rstrip("/"),
+api_key = (
+    os.getenv("ANTHROPIC_AUTH_TOKEN", "")
+    or os.getenv("ANTHROPIC_API_KEY", "")
+    or os.getenv("ANTHROPIC_TOKEN", "")
 )
+base_url = os.getenv(
+    "ANTHROPIC_BASE_URL",
+    "https://api.anthropic.com",
+)
+
+if not api_key:
+    raise RuntimeError(
+        "ANTHROPIC_AUTH_TOKEN is not set. "
+        "Configure it in GitHub Actions secrets."
+    )
+
+# Build client kwargs conditionally to avoid
+# passing empty values to newer SDK versions.
+client_kwargs: dict[str, Any] = {}
+
+if api_key:
+    client_kwargs["api_key"] = api_key
+
+if base_url:
+    client_kwargs["base_url"] = base_url.rstrip("/")
+
+client = anthropic.Anthropic(**client_kwargs)
 
 
 def load_skill(skill_name: str) -> str:
@@ -53,6 +74,10 @@ def review_code(
 ):
     # Load ONLY the skills selected by the user
     skills_content = []
+
+    # Support both 'selected_skills' and 'skills' param names
+    if selected_skills is None:
+        selected_skills = kwargs.get("skills") or []
 
     selected_skills = selected_skills or []
 

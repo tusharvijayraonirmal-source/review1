@@ -54,6 +54,8 @@ def review_code(
     # Load ONLY the skills selected by the user
     skills_content = []
 
+    selected_skills = selected_skills or []
+
     for skill_name in selected_skills:
         skill_name = skill_name.strip()
 

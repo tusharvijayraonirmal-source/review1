@@ -346,6 +346,7 @@ import sys
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
+from claude_api import review_code
 
 import requests
 
@@ -414,187 +415,187 @@ def build_payload(
     }
 
 
-def validate_api_url(api_url: str) -> str:
-    """
-    Validate and normalize the AI review API URL.
+# def validate_api_url(api_url: str) -> str:
+#     """
+#     Validate and normalize the AI review API URL.
 
-    The URL must point to the actual FastAPI POST review endpoint.
+#     The URL must point to the actual FastAPI POST review endpoint.
 
-    Example:
-        http://192.168.1.100:8000/api/code-review
+#     Example:
+#         http://192.168.1.100:8000/api/code-review
 
-    Invalid example:
-        http://192.168.1.100:8000
-    """
-    if not api_url or not api_url.strip():
-        raise ValueError(
-            "API URL is not configured. "
-            "Pass --api-url or set API_URL."
-        )
+#     Invalid example:
+#         http://192.168.1.100:8000
+#     """
+#     if not api_url or not api_url.strip():
+#         raise ValueError(
+#             "API URL is not configured. "
+#             "Pass --api-url or set API_URL."
+#         )
 
-    normalized_url = api_url.strip().rstrip("/")
+#     normalized_url = api_url.strip().rstrip("/")
 
-    parsed_url = urlparse(normalized_url)
+#     parsed_url = urlparse(normalized_url)
 
-    if parsed_url.scheme not in {"http", "https"}:
-        raise ValueError(
-            "API URL must start with http:// or https://. "
-            f"Received: {normalized_url}"
-        )
+#     if parsed_url.scheme not in {"http", "https"}:
+#         raise ValueError(
+#             "API URL must start with http:// or https://. "
+#             f"Received: {normalized_url}"
+#         )
 
-    if not parsed_url.netloc:
-        raise ValueError(
-            f"Invalid API URL: {normalized_url}"
-        )
+#     if not parsed_url.netloc:
+#         raise ValueError(
+#             f"Invalid API URL: {normalized_url}"
+#         )
 
-    # Prevent accidentally posting to the backend root.
-    if parsed_url.path in {"", "/"}:
-        raise ValueError(
-            "API_URL points to the backend root. "
-            "Configure the complete AI review POST endpoint. "
-            "For example: "
-            "http://backend-host:8000/api/code-review. "
-            f"Current value: {normalized_url}"
-        )
+#     # Prevent accidentally posting to the backend root.
+#     if parsed_url.path in {"", "/"}:
+#         raise ValueError(
+#             "API_URL points to the backend root. "
+#             "Configure the complete AI review POST endpoint. "
+#             "For example: "
+#             "http://backend-host:8000/api/code-review. "
+#             f"Current value: {normalized_url}"
+#         )
 
-    if parsed_url.path.endswith("/docs"):
-        raise ValueError(
-            "API_URL points to Swagger documentation. "
-            "Use the actual POST review endpoint instead."
-        )
+#     if parsed_url.path.endswith("/docs"):
+#         raise ValueError(
+#             "API_URL points to Swagger documentation. "
+#             "Use the actual POST review endpoint instead."
+#         )
 
-    if parsed_url.path.endswith("/openapi.json"):
-        raise ValueError(
-            "API_URL points to the OpenAPI schema. "
-            "Use the actual POST review endpoint instead."
-        )
+#     if parsed_url.path.endswith("/openapi.json"):
+#         raise ValueError(
+#             "API_URL points to the OpenAPI schema. "
+#             "Use the actual POST review endpoint instead."
+#         )
 
-    return normalized_url
+#     return normalized_url
 
 
-def call_review_backend(
-    api_url: str,
-    payload: dict[str, Any],
-) -> dict[str, Any]:
-    """
-    Call the AI code review API.
+# def call_review_backend(
+#     api_url: str,
+#     payload: dict[str, Any],
+# ) -> dict[str, Any]:
+#     """
+#     Call the AI code review API.
 
-    api_url must be the complete POST endpoint.
+#     api_url must be the complete POST endpoint.
 
-    Do not pass:
-        http://localhost:8000
+#     Do not pass:
+#         http://localhost:8000
 
-    Do not pass:
-        /api/ephemeral-runner/{instance_id}/complete
-    """
-    api_url = validate_api_url(api_url)
+#     Do not pass:
+#         /api/ephemeral-runner/{instance_id}/complete
+#     """
+#     api_url = validate_api_url(api_url)
 
-    logger.info("Sending review request to backend")
-    logger.info("Review API URL: %s", api_url)
+#     logger.info("Sending review request to backend")
+#     logger.info("Review API URL: %s", api_url)
 
-    try:
-        response = requests.post(
-            api_url,
-            json=payload,
-            timeout=900,
-        )
+#     try:
+#         response = requests.post(
+#             api_url,
+#             json=payload,
+#             timeout=900,
+#         )
 
-        logger.info(
-            "Backend response status: %s",
-            response.status_code,
-        )
+#         logger.info(
+#             "Backend response status: %s",
+#             response.status_code,
+#         )
 
-        if response.status_code == 405:
-            response_text = response.text[:2000]
+#         if response.status_code == 405:
+#             response_text = response.text[:2000]
 
-            raise RuntimeError(
-                "Backend returned HTTP 405 Method Not Allowed. "
-                "The configured API_URL does not support POST. "
-                "Check that it points to the actual AI review endpoint. "
-                f"URL: {api_url}. "
-                f"Response: {response_text}"
-            )
+#             raise RuntimeError(
+#                 "Backend returned HTTP 405 Method Not Allowed. "
+#                 "The configured API_URL does not support POST. "
+#                 "Check that it points to the actual AI review endpoint. "
+#                 f"URL: {api_url}. "
+#                 f"Response: {response_text}"
+#             )
 
-        if response.status_code == 404:
-            response_text = response.text[:2000]
+#         if response.status_code == 404:
+#             response_text = response.text[:2000]
 
-            raise RuntimeError(
-                "Backend returned HTTP 404 Not Found. "
-                "Check the FastAPI review route. "
-                f"URL: {api_url}. "
-                f"Response: {response_text}"
-            )
+#             raise RuntimeError(
+#                 "Backend returned HTTP 404 Not Found. "
+#                 "Check the FastAPI review route. "
+#                 f"URL: {api_url}. "
+#                 f"Response: {response_text}"
+#             )
 
-        response.raise_for_status()
+#         response.raise_for_status()
 
-    except requests.exceptions.Timeout as exc:
-        logger.exception(
-            "Review backend request timed out"
-        )
+#     except requests.exceptions.Timeout as exc:
+#         logger.exception(
+#             "Review backend request timed out"
+#         )
 
-        raise RuntimeError(
-            "Review backend request timed out after 900 seconds"
-        ) from exc
+#         raise RuntimeError(
+#             "Review backend request timed out after 900 seconds"
+#         ) from exc
 
-    except requests.exceptions.ConnectionError as exc:
-        logger.exception(
-            "Could not connect to review backend"
-        )
+#     except requests.exceptions.ConnectionError as exc:
+#         logger.exception(
+#             "Could not connect to review backend"
+#         )
 
-        raise RuntimeError(
-            f"Could not connect to review backend: {api_url}"
-        ) from exc
+#         raise RuntimeError(
+#             f"Could not connect to review backend: {api_url}"
+#         ) from exc
 
-    except requests.exceptions.HTTPError as exc:
-        response_text = ""
+#     except requests.exceptions.HTTPError as exc:
+#         response_text = ""
 
-        if exc.response is not None:
-            response_text = exc.response.text[:2000]
+#         if exc.response is not None:
+#             response_text = exc.response.text[:2000]
 
-        status_code = (
-            exc.response.status_code
-            if exc.response is not None
-            else "unknown"
-        )
+#         status_code = (
+#             exc.response.status_code
+#             if exc.response is not None
+#             else "unknown"
+#         )
 
-        logger.error(
-            "Review backend returned HTTP error: %s",
-            response_text,
-        )
+#         logger.error(
+#             "Review backend returned HTTP error: %s",
+#             response_text,
+#         )
 
-        raise RuntimeError(
-            f"Review backend HTTP error: {status_code}. "
-            f"Response: {response_text}"
-        ) from exc
+#         raise RuntimeError(
+#             f"Review backend HTTP error: {status_code}. "
+#             f"Response: {response_text}"
+#         ) from exc
 
-    except requests.exceptions.RequestException as exc:
-        logger.exception(
-            "Review backend request failed"
-        )
+#     except requests.exceptions.RequestException as exc:
+#         logger.exception(
+#             "Review backend request failed"
+#         )
 
-        raise RuntimeError(
-            "Review backend request failed"
-        ) from exc
+#         raise RuntimeError(
+#             "Review backend request failed"
+#         ) from exc
 
-    try:
-        result = response.json()
+#     try:
+#         result = response.json()
 
-    except ValueError as exc:
-        logger.error(
-            "Backend returned invalid JSON: %s",
-            response.text[:2000],
-        )
+#     except ValueError as exc:
+#         logger.error(
+#             "Backend returned invalid JSON: %s",
+#             response.text[:2000],
+#         )
 
-        raise RuntimeError(
-            "Review backend returned invalid JSON"
-        ) from exc
+#         raise RuntimeError(
+#             "Review backend returned invalid JSON"
+#         ) from exc
 
-    if not isinstance(result, dict):
-        raise RuntimeError(
-            "Review backend response must be a JSON object"
-        )
+#     if not isinstance(result, dict):
+#         raise RuntimeError(
+#             "Review backend response must be a JSON object"
+#         )
 
-    return result
+#     return result
 
 
 def validate_review_result(
@@ -736,11 +737,18 @@ def main() -> int:
             args.pr_number,
         )
 
-        review = call_review_backend(
-            api_url=args.api_url,
-            payload=payload,
+        # review = call_review_backend(
+        #     api_url=args.api_url,
+        #     payload=payload,
+        # )
+        review = review_code(
+            diff=diff,
+            repository=args.repository,
+            pr_number=int(args.pr_number),
+            review_mode=args.review_mode,
+            skills=parse_skills(args.skills),
+            repository_context=args.repository_context or "",
         )
-
         validate_review_result(review)
 
         save_review_result(

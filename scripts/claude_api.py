@@ -46,9 +46,10 @@ def review_code(
     diff: str,
     repository: str,
     pr_number: int,
-    selected_skills: list[str],
+    selected_skills: list[str] | None = None,
     review_mode: str = "PR",
     repository_context: str = "",
+    **kwargs,
 ):
     # Load ONLY the skills selected by the user
     skills_content = []
